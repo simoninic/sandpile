@@ -15,22 +15,39 @@ func SimulateSandpile(size, pile int, placement string) GameBoard {
 	fmt.Println("Initial Board")
 	PrintBoard(board)
 
-	board = ToppleSubboard(board, size)
+	numProcs := 2
+	SandpileMultiprocs(board, numProcs)
+
+	fmt.Println("FINAL board")
+	PrintBoard(board)
 
 	return board
 }
 
-func ToppleSubboard(board GameBoard, size int) GameBoard {
+func ToppleSubboard(board GameBoard, startIndex int, endIndex int, c chan []int) {
+	width := len(board)
+
+	fmt.Println("Macaron: ", startIndex, "      ", endIndex)
+
 	for !IsStable(board) {
-		for row := 0; row < size; row++ {
-			for col := 0; col < size; col++ {
+		for row := startIndex; row < endIndex; row++ {
+			for col := 0; col < width; col++ {
 				if board[row][col] >= 4 {
-					board = ToppleCell(board, row, col)	
+					ToppleCell(board, row, col)	
 				}		
 			}
 		}
 	}
-	return board
+	fmt.Println("subboard final result:")
+	PrintBoard(board)
+	//NEED TO KEEP TRACK OF COINS THAT FALL OUT!!!!!
+
+	startEnd := make([]int, 2)
+
+	startEnd[0] = startIndex
+	startEnd[1] = endIndex
+
+	c <- startEnd
 }
 
 func AddStartingCoins(board GameBoard, pile int, placement string) {
@@ -110,7 +127,7 @@ func IsStable(board GameBoard) bool {
 	return true
 }
 
-func ToppleCell(board GameBoard, row, col int) GameBoard {
+func ToppleCell(board GameBoard, row, col int) {
 	for board[row][col] >= 4 {
 		board[row][col] -= 4
 		if OnBoard(len(board), row-1, col) {
@@ -126,7 +143,6 @@ func ToppleCell(board GameBoard, row, col int) GameBoard {
 			board[row][col+1] += 1
 		}
 	}
-	return board
 }
 
 func OnBoard(width, row, col int) bool {
@@ -145,27 +161,42 @@ func PrintBoard(board GameBoard) {
 
 ///// Parallelization
 func SandpileMultiprocs(board GameBoard, numProcs int) {
+	//size := len(board)
+
+	// set up final empty board
+	//var finalBoard GameBoard
+
+	//fmt.Println("starting final board")
+	//fmt.Println(finalBoard)
 
 	n := len(board)
-	c := make(chan [][]int, numProcs)
+	c := make(chan []int, numProcs)
 
 	for i := 0; i < numProcs; i++ {
 		startIndex := i * (n / numProcs)
 		endIndex := (i + 1) * (n / numProcs)
+		fmt.Println("s: ", startIndex, "     e: ", endIndex)
 		if i < numProcs - 1 {
-			go ToppleSubboard(board[startIndex:endIndex], size, c)
+			go ToppleSubboard(board, startIndex, endIndex, c)
 		} else {
-			go ToppleSubboard(board[startIndex:], c)
+			go ToppleSubboard(board, startIndex, endIndex, c)
 		}
 	}
 
 	for i := 0; i < numProcs; i++ {
+		// startIndex := i * (n / numProcs)
+		// endIndex := (i + 1) * (n / numProcs)
 		miniBoard := <- c
-		for j := 0; j < len(miniBoard); j++ {
-			finalBoard = append(finalBoard, miniBoard) //should this be miniBoard[j]?
+		fmt.Println(miniBoard)
+		// fmt.Println("Miniboard print")
+		// fmt.Println(miniBoard)
 
-		}
+		// for j := 0; j < len(miniBoard); j++ {
+		// 	finalBoard = append(finalBoard, miniBoard[j])
+		// }
 	}
+
+	//return board
 	/*
 	range through numProcs
 		divide the board into subboards that maintain  (so each col is col of entire board, each row is ~row of entire board / numProcs)
