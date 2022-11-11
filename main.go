@@ -1,12 +1,15 @@
 package main
 
 import(
-	"fmt"
-	"os"
+	//"fmt"
 	"strconv"
+	"os"
+	//"image"
+	"image/png"
 )
 
 func main() {
+
 	size, err1 := strconv.Atoi(os.Args[1])
 	if err1 != nil {
 		panic(err1)
@@ -24,7 +27,13 @@ func main() {
 
 	coinBoard = SimulateSandpile(size, pile, placement) // 3 4 central
 
-	fmt.Println("")
-	fmt.Println("Final Board")
-	PrintBoard(coinBoard)
+
+	canvasWidth := 1000
+	img := coinBoard.DrawToCanvas(canvasWidth)
+	out, err := os.Create("test.png")
+	if err != nil {
+		panic(err)
+	}
+	png.Encode(out, img)
+	out.Close()
 }

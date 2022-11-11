@@ -3,51 +3,156 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"math"
+	"time"
+	//"math"
 )
 
-func SimulateSandpile(size, pile int, placement string) GameBoard {
-	fmt.Println("starting simulation with ", placement)
-	board := InitializeBoard(size)
+func SimulateSandpile(size, pile int, placement string) GameBoard {	
 
+	//fmt.Println("starting simulation with ", placement)
+	board := InitializeBoard(size)
 	AddStartingCoins(board, pile, placement)
+	board2 := CopyBoard(board)
 
 	fmt.Println("Initial Board")
 	PrintBoard(board)
 
+	start := time.Now()
 	numProcs := 2
-	SandpileMultiprocs(board, numProcs)
-
-	fmt.Println("FINAL board")
+	for !IsStable(board, size, size) {
+		SandpileMultiprocs(board, numProcs)
+	}
+	elapsed := time.Since(start)
+	fmt.Println()
+	fmt.Println("Final Board (Parallel)")
 	PrintBoard(board)
+	fmt.Println()
+
+
+	// board2 := InitializeBoard(size)
+	// AddStartingCoins(board2, pile, placement)
+	fmt.Println("Initial Board")
+	PrintBoard(board2)
+
+	start2 := time.Now()
+	ToppleSubboardSerial(board2)
+	elapsed2 := time.Since(start2)
+
+	fmt.Println()
+	fmt.Println("Final Board (Serial)")
+	PrintBoard(board2)
+
+	fmt.Println("Time Elapsed (Parallel): ", elapsed)
+	fmt.Println("Time Elapsed (Serial): ", elapsed2)
+
+	fmt.Println("Do boards match?: ", BoardsMatch(board, board2))
 
 	return board
 }
 
-func ToppleSubboard(board GameBoard, startIndex int, endIndex int, c chan []int) {
-	width := len(board)
+func CopyBoard(board GameBoard) GameBoard {
+	size := len(board)
+	var newBoard GameBoard
+	newBoard = make([]([]int), size)
 
-	fmt.Println("Macaron: ", startIndex, "      ", endIndex)
+	for r := range board {
+		newBoard[r] = make([]int, size)
+	}
+  
+	for i := 0; i < len(board); i++ {
+		for j := 0; j < len(board[0]); j++ {
+			newBoard[i][j] = board[i][j]
+		}
+	}
 
-	for !IsStable(board) {
-		for row := startIndex; row < endIndex; row++ {
-			for col := 0; col < width; col++ {
+	return newBoard
+}
+
+func BoardsMatch(board1, board2 GameBoard) bool {
+	if (len(board1) != len(board2)) || (len(board1[0]) != len(board2[0])) {
+		return false
+	}
+	for i := 0; i < len(board1); i++ {
+		for j := 0; j < len(board1[0]); j++ {
+			if board1[i][j] != board2[i][j] {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func ToppleSubboardSerial(board GameBoard) GameBoard {
+	size := len(board)
+	for !IsStable(board, size, size) {
+		for row := 0; row < size; row++ {
+			for col := 0; col < size; col++ {
 				if board[row][col] >= 4 {
-					ToppleCell(board, row, col)	
+					ToppleCellSerial(board, size, size, row, col)	
 				}		
 			}
 		}
 	}
-	fmt.Println("subboard final result:")
-	PrintBoard(board)
+	return board
+}
+
+func ToppleSubboard(board GameBoard, startRow int, endRow int, c chan SubBoard) {
+	var miniBoard SubBoard
+
+	numRows := len(board)
+	numCols := len(board[0])
+
+	topFalloff := make([]*int, numCols)
+	for i := 0; i < numCols; i++ {
+		topFalloff[i] = new(int)
+		*topFalloff[i] = 0
+	}
+	bottomFalloff := make([]*int, numCols)
+	for i := 0; i < numCols; i++ {
+		bottomFalloff[i] = new(int)
+		*bottomFalloff[i] = 0
+	}
+	//fmt.Println("brownie: ", bottomFalloff)
+
+
+
+	//fmt.Println("subboard initial")
+	//PrintBoard(board)
+
+
+	//fmt.Println(numRows)
+	//fmt.Println(numCols)
+
+	//fmt.Println("Macaron: ", startRow, "      ", endRow)
+
+	for !IsStable(board, numRows, numCols) {
+		//fmt.Println("Iroh")
+		for row := 0; row < numRows; row++ {
+			for col := 0; col < numCols; col++ {
+				if board[row][col] >= 4 {
+					//fmt.Println("Thomas")
+					ToppleCell(board, numRows, numCols, row, col, topFalloff, bottomFalloff)	
+				}		
+			}
+		}
+	}
+	//fmt.Println("subboard final result:")
+	//PrintBoard(board)
 	//NEED TO KEEP TRACK OF COINS THAT FALL OUT!!!!!
 
-	startEnd := make([]int, 2)
+	miniBoard.startRow = startRow
+	miniBoard.endRow = endRow
+	miniBoard.topFalloff = topFalloff
+	miniBoard.bottomFalloff = bottomFalloff
 
-	startEnd[0] = startIndex
-	startEnd[1] = endIndex
+	//fmt.Println("fall off slices")
+	//fmt.Println(topFalloff)
+	//fmt.Println(bottomFalloff)
 
-	c <- startEnd
+	// divide the boards correctly (use only subboards)
+	// include another thing in channel: the overflow of values going into the top and bottom sides of the board...
+
+	c <- miniBoard
 }
 
 func AddStartingCoins(board GameBoard, pile int, placement string) {
@@ -56,52 +161,17 @@ func AddStartingCoins(board GameBoard, pile int, placement string) {
 	if placement == "central" {
 		board[width/2][width/2] = pile
 	} else { // placement == "random"
-
 		volume := 100
-
-		// optimized random number generation for relatively small piles
-		if pile < volume {
-			fmt.Println("small pile rng")
-			randomNumbers := make([]int, volume)
-
-			for i := 0; i < pile; i++ {
-				index := rand.Intn(100)
-				randomNumbers[index]++
+		// add the coins randomly into 100 different cells (can repeat into same cell)
+		remainder := pile % volume
+		
+		for i := 0; i < volume; i++ {
+			randRow := rand.Intn(width)
+			randCol := rand.Intn(width)
+			if i < remainder {
+				board[randRow][randCol]++
 			}
-
-			for i := 0; i < volume; i++ {
-				randRow := rand.Intn(width)
-				randCol := rand.Intn(width)
-				board[randRow][randCol] += randomNumbers[i]
-			}
-		} else { // optimized random number generation for relatively large piles
-			fmt.Println("large pile rng")
-			randomNumbers := make([]float64, volume)
-			randomSum := 0.0
-
-			// generate random coins 100 times
-			for i := 0; i < volume; i++ {
-				randCoins := rand.Float64()
-				randomNumbers[i] = randCoins
-				randomSum += randCoins
-			}
-			// convert to integers
-			pileTracker := 0.0
-			for i := 0; i < volume; i++ {
-				randomNumbers[i] = math.Round(randomNumbers[i] * float64(pile) / randomSum)
-				pileTracker += randomNumbers[i]
-			}
-			remainder := int(math.Round(float64(pile) - pileTracker))
-
-			// add the random coins to 100 random cells of the board
-			for i := 0; i < volume; i++ {
-				randRow := rand.Intn(width)
-				randCol := rand.Intn(width)
-				if i < remainder {
-					board[randRow][randCol] += 1
-				}
-				board[randRow][randCol] += int(randomNumbers[i])
-			}
+			board[randRow][randCol] += pile/volume
 		}
 	}
 }
@@ -116,9 +186,9 @@ func InitializeBoard(size int) GameBoard {
 	return board
 }
 
-func IsStable(board GameBoard) bool {
-	for row := 0; row < len(board); row++ {
-		for col := 0; col < len(board); col++ {
+func IsStable(board GameBoard, numRows, numCols int) bool {
+	for row := 0; row < numRows; row++ {
+		for col := 0; col < numCols; col++ {
 			if board[row][col] >= 4 {
 				return false
 			}	
@@ -127,26 +197,56 @@ func IsStable(board GameBoard) bool {
 	return true
 }
 
-func ToppleCell(board GameBoard, row, col int) {
+func ToppleCell(board GameBoard, numRows, numCols, row, col int, topFalloff []*int, bottomFalloff []*int) {
+	// topFalloff := make([]int, numCols)
+	// bottomFalloff := make([]int, numCols)
+
 	for board[row][col] >= 4 {
 		board[row][col] -= 4
-		if OnBoard(len(board), row-1, col) {
+		if OnBoard(len(board), numRows, numCols, row-1, col) {
 			board[row-1][col] += 1
 		}
-		if OnBoard(len(board), row+1, col) {
+		if row == 0 && col >= 0 && col < numCols {
+			//fmt.Println("length of top falloff: ", len(topFalloff), "   col: ", col)
+			(*topFalloff[col])++
+		}
+		if row == (numRows - 1) && col >= 0 && col < numCols {
+			//fmt.Println("length of bot falloff: ", len(bottomFalloff), "   col: ", col)
+			//fmt.Println("bottom falloff: ", bottomFalloff[col])
+			(*bottomFalloff[col])++
+			//fmt.Println("meow")
+		}
+		if OnBoard(len(board), numRows, numCols, row+1, col) {
 			board[row+1][col] += 1
 		}
-		if OnBoard(len(board), row, col-1) {
+		if OnBoard(len(board), numRows, numCols, row, col-1) {
 			board[row][col-1] += 1
 		}
-		if OnBoard(len(board), row, col+1) {
+		if OnBoard(len(board), numRows, numCols, row, col+1) {
+			board[row][col+1] += 1
+		}
+	}
+}
+func ToppleCellSerial(board GameBoard, numRows, numCols, row, col int) {
+	for board[row][col] >= 4 {
+		board[row][col] -= 4
+		if OnBoard(len(board), numRows, numCols, row-1, col) {
+			board[row-1][col] += 1
+		}
+		if OnBoard(len(board), numRows, numCols, row+1, col) {
+			board[row+1][col] += 1
+		}
+		if OnBoard(len(board), numRows, numCols, row, col-1) {
+			board[row][col-1] += 1
+		}
+		if OnBoard(len(board), numRows, numCols, row, col+1) {
 			board[row][col+1] += 1
 		}
 	}
 }
 
-func OnBoard(width, row, col int) bool {
-	if (row >= 0 && row < width && col >= 0 && col < width) {
+func OnBoard(width, numRows, numCols, row, col int) bool {
+	if (row >= 0 && row < numRows && col >= 0 && col < numCols) {
 		return true
 	}
 	return false
@@ -170,45 +270,61 @@ func SandpileMultiprocs(board GameBoard, numProcs int) {
 	//fmt.Println(finalBoard)
 
 	n := len(board)
-	c := make(chan []int, numProcs)
+	c := make(chan SubBoard, numProcs)
 
 	for i := 0; i < numProcs; i++ {
 		startIndex := i * (n / numProcs)
 		endIndex := (i + 1) * (n / numProcs)
-		fmt.Println("s: ", startIndex, "     e: ", endIndex)
+		//fmt.Println("s: ", startIndex, "     e: ", endIndex)
 		if i < numProcs - 1 {
-			go ToppleSubboard(board, startIndex, endIndex, c)
+			go ToppleSubboard(board[startIndex:endIndex], startIndex, endIndex, c)
 		} else {
-			go ToppleSubboard(board, startIndex, endIndex, c)
+			go ToppleSubboard(board[startIndex:], startIndex, endIndex, c)
 		}
 	}
+
+	var mergedBoard []SubBoard
 
 	for i := 0; i < numProcs; i++ {
 		// startIndex := i * (n / numProcs)
 		// endIndex := (i + 1) * (n / numProcs)
 		miniBoard := <- c
-		fmt.Println(miniBoard)
-		// fmt.Println("Miniboard print")
-		// fmt.Println(miniBoard)
+		mergedBoard = append(mergedBoard, miniBoard)
 
-		// for j := 0; j < len(miniBoard); j++ {
-		// 	finalBoard = append(finalBoard, miniBoard[j])
-		// }
+		//fmt.Println("merging boards")
+
+		//fmt.Println(miniBoard)
 	}
 
-	//return board
-	/*
-	range through numProcs
-		divide the board into subboards that maintain  (so each col is col of entire board, each row is ~row of entire board / numProcs)
-		each time call goroutine - SandpileSingleproc on each subboard
-		
-		get results back from asynchronous channel
-		combine subboards together
-			add together the coins that fall off if the subboards are adjacent (one directly on top of the other)
-				this follows the condition last row index of subboard-A + 1 == first row index of subboard-B
-	*/
+	HandleLostCoins(board, mergedBoard)
 }
 
-// func SandpileSingleprocs(board Gameboard, c chan GameBoard) {
+func HandleLostCoins(board GameBoard, mergedBoard []SubBoard) {
+	for i := 0; i < len(mergedBoard); i++ {
+		for j := 0; j < len(mergedBoard); j++ { // loop through twice to compare two different miniBoards together
+			// define both mini boards
+			miniBoardA := mergedBoard[i]
+			miniBoardB := mergedBoard[j]
+			
+			// if miniBoards are adjacent, then add the fallen coins to each others first/last row
+			if miniBoardA.endRow == miniBoardB.startRow {
+				numCols := len(board)
 
-// }
+				// add the fallen off coins
+				for colIndex := 0; colIndex < numCols; colIndex++ {
+					AddFallenCoins(board, mergedBoard, miniBoardA, miniBoardB, colIndex)
+				}
+			}
+		}
+	}
+}
+
+// AddFallenCoins: adds coins that have fallen off the subBoards back to the main board while merging
+func AddFallenCoins(board GameBoard, mergedBoard []SubBoard, miniBoardA SubBoard, miniBoardB SubBoard, colIndex int) {
+	if len(miniBoardB.topFalloff) > 0 {
+		board[miniBoardA.endRow - 1][colIndex] += *(miniBoardB.topFalloff)[colIndex]
+	}
+	if len(miniBoardA.bottomFalloff) > 0 {
+		board[miniBoardB.startRow][colIndex] += *(miniBoardA.bottomFalloff)[colIndex]
+	}
+}
