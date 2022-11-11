@@ -7,25 +7,25 @@ import (
 	//"math"
 )
 
-func SimulateSandpile(size, pile int, placement string) GameBoard {	
+func SimulateSandpile(size, pile int, placement string) (GameBoard, GameBoard) {	
 
 	//fmt.Println("starting simulation with ", placement)
-	board := InitializeBoard(size)
-	AddStartingCoins(board, pile, placement)
-	board2 := CopyBoard(board)
+	board1 := InitializeBoard(size)
+	AddStartingCoins(board1, pile, placement)
+	board2 := CopyBoard(board1)
 
 	fmt.Println("Initial Board")
-	PrintBoard(board)
+	PrintBoard(board1)
 
 	start := time.Now()
 	numProcs := 2
-	for !IsStable(board, size, size) {
-		SandpileMultiprocs(board, numProcs)
+	for !IsStable(board1, size, size) {
+		SandpileMultiprocs(board1, numProcs)
 	}
 	elapsed := time.Since(start)
 	fmt.Println()
 	fmt.Println("Final Board (Parallel)")
-	PrintBoard(board)
+	PrintBoard(board1)
 	fmt.Println()
 
 
@@ -45,9 +45,9 @@ func SimulateSandpile(size, pile int, placement string) GameBoard {
 	fmt.Println("Time Elapsed (Parallel): ", elapsed)
 	fmt.Println("Time Elapsed (Serial): ", elapsed2)
 
-	fmt.Println("Do boards match?: ", BoardsMatch(board, board2))
+	fmt.Println("Do boards match?: ", BoardsMatch(board1, board2))
 
-	return board
+	return board1, board2
 }
 
 func CopyBoard(board GameBoard) GameBoard {

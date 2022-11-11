@@ -23,17 +23,26 @@ func main() {
 		panic("Incorrect argument value for placement")
 	}
 	
-	var coinBoard GameBoard
+	var parallelBoard GameBoard
+	var serialBoard GameBoard
 
-	coinBoard = SimulateSandpile(size, pile, placement) // 3 4 central
+	parallelBoard, serialBoard = SimulateSandpile(size, pile, placement) // 3 4 central
 
 
 	canvasWidth := 1000
-	img := coinBoard.DrawToCanvas(canvasWidth)
-	out, err := os.Create("test.png")
+	img := parallelBoard.DrawToCanvas(canvasWidth)
+	out, err := os.Create("rename_parallel.png")
 	if err != nil {
 		panic(err)
 	}
 	png.Encode(out, img)
 	out.Close()
+
+	img2 := serialBoard.DrawToCanvas(canvasWidth)
+	out2, err2 := os.Create("rename_serial.png")
+	if err2 != nil {
+		panic(err2)
+	}
+	png.Encode(out2, img2)
+	out2.Close()
 }
