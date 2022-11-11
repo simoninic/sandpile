@@ -10,6 +10,7 @@ import(
 
 func main() {
 
+	// reads in size, pile and placement input arguments
 	size, err1 := strconv.Atoi(os.Args[1])
 	if err1 != nil {
 		panic(err1)
@@ -23,12 +24,13 @@ func main() {
 		panic("Incorrect argument value for placement")
 	}
 	
+	// run sandpile simulations serially and parallel-ly to create the two respective final boards
 	var parallelBoard GameBoard
 	var serialBoard GameBoard
-
 	parallelBoard, serialBoard = SimulateSandpile(size, pile, placement) // 3 4 central
 
 
+	// create the 2 PNG images resulting from serial and parallel strategies
 	canvasWidth := 1000
 	img := parallelBoard.DrawToCanvas(canvasWidth)
 	out, err := os.Create("rename_parallel.png")
