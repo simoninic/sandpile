@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
+	//"math"
 	"math/rand"
 	"time"
 	//"runtime"
-	//"math"
+	"math"
 )
 
 // SimulateSandpile: runs the sandpile process on a board of coins both serially and parallel-ly
@@ -26,11 +27,7 @@ func SimulateSandpile(size, pile int, placement string) (GameBoard, GameBoard) {
 	println("Num Procs: ", numProcs)
 
 	start := time.Now()
-	//for !IsStable(board1, size, size) {
-
 	SandpileMultiprocs(board1, numProcs)
-
-	//}
 	elapsed := time.Since(start)
 	//fmt.Println()
 	// fmt.Println("Final Board (Parallel)")
@@ -57,6 +54,10 @@ func SimulateSandpile(size, pile int, placement string) (GameBoard, GameBoard) {
 	// 	fmt.Println("Time Elapsed - Sandpile Multiproc Run ", i, ": ", elapsedPar[i])
 	// }
 	fmt.Println("Do boards match?: ", BoardsMatch(board1, board2))
+
+	// PrintBoard(board1)
+	// fmt.Println()
+	// PrintBoard(board2)
 
 	return board1, board2
 }
@@ -144,7 +145,8 @@ func ToppleSubboardSerial(board GameBoard) {
 		for row := 0; row < size; row++ {
 			for col := 0; col < size; col++ {
 				if board[row][col] >= 4 {
-					ToppleCellSerial(board, size, size, row, col)	
+					UpdateOnBoardCells(board, size, size, row, col)
+					// ToppleCellSerial(board, size, size, row, col)	
 				}		
 			}
 		}
@@ -153,24 +155,28 @@ func ToppleSubboardSerial(board GameBoard) {
 
 // ToppleCellSerial: topples a single cell until it has less than 4 coins
 // inputs: board (Gameboard), the number of rows and columns, as well as the row and column index (all ints)
-func ToppleCellSerial(board GameBoard, numRows, numCols, row, col int) {
-	for board[row][col] >= 4 {
-		UpdateOnBoardCells(board, numRows, numCols, row, col)
-	}
-}
+// func ToppleCellSerial(board GameBoard, numRows, numCols, row, col int) {
+// 	if board[row][col] >= 4 {
+// 		UpdateOnBoardCells(board, numRows, numCols, row, col)
+// 	}
+// }
 
 // SandpileMultiprocs: runs the topple process throughout the entire board as it gets broken down into sub-boards (parallelization)
 // inputs: board (GameBoard), number of processors (int)
 func SandpileMultiprocs(board GameBoard, numProcs int) {
-	//var startPar []time.Time
-	var elapsedPar []time.Duration
+	//// var elapsedPar []time.Duration
 
 	size := len(board)
 
 	for !IsStable(board, size, size) {
-		startPar := time.Now()
+		//// startPar := time.Now()
 		n := len(board)
 		c := make(chan SubBoard, numProcs)
+
+		// scale down numProcs if board is too small
+		if numProcs > size {
+			numProcs = size
+		}
 
 		for i := 0; i < numProcs; i++ {
 			startIndex := i * (n / numProcs)
@@ -190,45 +196,43 @@ func SandpileMultiprocs(board GameBoard, numProcs int) {
 			// endIndex := (i + 1) * (n / numProcs)
 			miniBoard := <- c
 			mergedBoard = append(mergedBoard, miniBoard)
+			//fmt.Println("HandleLostCoins start")
+			HandleLostCoins(board, miniBoard, mergedBoard)
 		}
-		HandleLostCoins(board, mergedBoard)
-		elapsedPar = append(elapsedPar, time.Since(startPar))
+		
+		//// elapsedPar = append(elapsedPar, time.Since(startPar))
 	}
 
-	fmt.Println("Total # Runs of Sandpile Multiprocs: ", len(elapsedPar))
+	//// fmt.Println("Total # Runs of Sandpile Multiprocs: ", len(elapsedPar))
 
-	for i := 0; i < len(elapsedPar); i+=25 {
-		fmt.Println("Time Elapsed - Sandpile Multiproc Run ", i, ": ", elapsedPar[i])
-	}
+	//// for i := 0; i < len(elapsedPar); i+=25 {
+	//// 	fmt.Println("Time Elapsed - Sandpile Multiproc Run ", i, ": ", elapsedPar[i])
+	//// }
 }
 
 // HandleLostCoins: look for adjacent subboards where their "fallen off" coins can be added accordingly
 // inputs: board (GameBoard), the complete board as a slice of SubBoards
-func HandleLostCoins(board GameBoard, mergedBoard []SubBoard) {
+func HandleLostCoins(board GameBoard, miniBoardA SubBoard, mergedBoard []SubBoard) {
 	for i := 0; i < len(mergedBoard); i++ {
-		for j := i + 1; j < len(mergedBoard); j++ { // loop through twice to compare two different miniBoards together
-			// define both mini boards
-			miniBoardA := mergedBoard[i]
-			miniBoardB := mergedBoard[j]
-			
-			// if miniBoards are adjacent, then add the fallen coins to each others first/last row
-			if miniBoardA.endRow == miniBoardB.startRow {
-				numCols := len(board)
+		miniBoardB := mergedBoard[i]
+		
+		// if miniBoards are adjacent, then add the fallen coins to each others first/last row
+		if miniBoardA.endRow == miniBoardB.startRow {
+			numCols := len(board)
 
-				// add the fallen off coins
-				for colIndex := 0; colIndex < numCols; colIndex++ {
-					AddFallenCoins(board, mergedBoard, miniBoardA, miniBoardB, colIndex)
-				}
+			// add the fallen off coins
+			for colIndex := 0; colIndex < numCols; colIndex++ {
+				AddFallenCoins(board, mergedBoard, miniBoardA, miniBoardB, colIndex)
 			}
+		}
 
-			// looking at miniBoards the other way
-			if miniBoardB.endRow == miniBoardA.startRow {
-				numCols := len(board)
+		// looking at miniBoards the other way
+		if miniBoardB.endRow == miniBoardA.startRow {
+			numCols := len(board)
 
-				// add the fallen off coins
-				for colIndex := 0; colIndex < numCols; colIndex++ {
-					AddFallenCoins(board, mergedBoard, miniBoardB, miniBoardA, colIndex)
-				}
+			// add the fallen off coins
+			for colIndex := 0; colIndex < numCols; colIndex++ {
+				AddFallenCoins(board, mergedBoard, miniBoardB, miniBoardA, colIndex)
 			}
 		}
 	}
@@ -297,33 +301,41 @@ func ToppleSubboard(board GameBoard, startRow int, endRow int, c chan SubBoard) 
 // inputs: board (GameBoard), numRows & numCols (ints) - borders of sub-board, row and column indices (int),
 //         top and bottom falloff numbers just above & below the borders of the sub-board
 func ToppleCell(board GameBoard, numRows, numCols, row, col int, topFalloff []*int, bottomFalloff []*int) {
-	for board[row][col] >= 4 { // while the cell is topple-able
-		UpdateOnBoardCells(board, numRows, numCols, row, col)
+	if board[row][col] >= 4 { // while the cell is topple-able
+		toppleAmount := UpdateOnBoardCells(board, numRows, numCols, row, col)
 		if row == 0 && col >= 0 && col < numCols {
-			(*topFalloff[col])++
+			(*topFalloff[col]) += toppleAmount
 		}
 		if row == (numRows - 1) && col >= 0 && col < numCols {
-			(*bottomFalloff[col])++
+			(*bottomFalloff[col]) += toppleAmount
 		}
 	}
 }
 
 // UpdateOnBoardCells: removes 4 coins from target cell and adds 1 coin to the 4 adjacent cells
 // inputs: board (GameBoard), numRows & numCols - bottom & right borders of sub-board, row & col - indices of target cell
-func UpdateOnBoardCells(board GameBoard, numRows, numCols, row, col int) {
-	board[row][col] -= 4
+// output: returns the amount of coins that would topple over to one adjacent cell
+func UpdateOnBoardCells(board GameBoard, numRows, numCols, row, col int) int {
+	if len(board) == 0 {
+		return 0
+	}
+	// remove coins from current cell until less than 4
+	// add a coin to each adjacent cell (every time we remove 4 from current cell)
+	toppleAmount := int(math.Floor(float64(board[row][col]) / 4.0))
 	if OnBoard(len(board), numRows, numCols, row-1, col) {
-		board[row-1][col] += 1
+		board[row-1][col] += toppleAmount
 	}
 	if OnBoard(len(board), numRows, numCols, row+1, col) {
-		board[row+1][col] += 1
+		board[row+1][col] += toppleAmount
 	}
 	if OnBoard(len(board), numRows, numCols, row, col-1) {
-		board[row][col-1] += 1
+		board[row][col-1] += toppleAmount
 	}
 	if OnBoard(len(board), numRows, numCols, row, col+1) {
-		board[row][col+1] += 1
+		board[row][col+1] += toppleAmount
 	}
+	board[row][col] = board[row][col] % 4
+	return toppleAmount
 }
 
 // IsStable: checks if a board is stable (no cells have 4 coins or more)

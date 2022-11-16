@@ -17,7 +17,7 @@ func (board GameBoard) DrawToCanvas(canvasWidth int) image.Image {
 	width := len(board)
 
 	// set a new square canvas
-	c := canvas.CreateNewCanvas(1000, 1000)
+	c := canvas.CreateNewCanvas(canvasWidth, canvasWidth)
 
 	// create a black background
 	c.SetFillColor(canvas.MakeColor(0, 0, 0)) //black
