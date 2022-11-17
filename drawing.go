@@ -3,18 +3,20 @@ package main
 import (
 	"canvas"
 	"image"
-	//"fmt"
+	"image/png"
+	"os"
 )
 
 // DrawToCanvas: uses canvas to draw an image showing the resulting pattern from the coin toppling
 // input: the width of the canvas (int)
 // output: the image representing the resulting pattern from coin toppling
-func (board GameBoard) DrawToCanvas(canvasWidth int) image.Image {
+func (board GameBoard) DrawToCanvas() image.Image {
 	if board == nil {
 		panic("Cannot draw a nil board.")
 	}
 
 	width := len(board)
+	canvasWidth := width * 3
 
 	// set a new square canvas
 	c := canvas.CreateNewCanvas(canvasWidth, canvasWidth)
@@ -31,13 +33,13 @@ func (board GameBoard) DrawToCanvas(canvasWidth int) image.Image {
 	for i := 0; i < width; i++ {
 		for j := 0; j < width; j++ {
 			if board[i][j] == 3 { // color cell white if it has 3 coins
-				c.SetFillColor(canvas.MakeColor(255, 255, 255))
+				c.SetFillColor(canvas.MakeColor(90, 130, 90))
 			} else if board[i][j] == 2 { // color cell light gray if it has 2 coins
-				c.SetFillColor(canvas.MakeColor(170, 170, 170))
+				c.SetFillColor(canvas.MakeColor(130, 180, 130))
 			} else if board[i][j] == 1 { // color cell dark gray if it has 1 coin
-				c.SetFillColor(canvas.MakeColor(85, 85, 85))
+				c.SetFillColor(canvas.MakeColor(170, 225, 170))
 			} else { // color cell black if it has no coins
-				c.SetFillColor(canvas.MakeColor(0, 0, 0))
+				c.SetFillColor(canvas.MakeColor(204, 255, 255))
 			}
 
 			// draw a rectangle to represent the cell of the board
@@ -50,4 +52,19 @@ func (board GameBoard) DrawToCanvas(canvasWidth int) image.Image {
 
 	// draw the image!
 	return c.GetImage()
+}
+
+// MakeSerialImage: draws the PNG image of the final board state after toppling
+// input: the image to draw, the file name of the new PNG file containing the image
+func MakeImage(img image.Image, fileName string) {
+	if _, err := os.Stat(fileName); err == nil { // if file exists, delete it
+		os.Remove(fileName)
+	}
+	// create new image file with new png image of final board state
+	out, err := os.Create(fileName)
+	if err != nil {
+		panic(err)
+	}
+	png.Encode(out, img)
+	out.Close()	
 }

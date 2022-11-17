@@ -10,29 +10,22 @@ import (
 	"testing"
 )
 
-// // roundFloat
-// // inputs: the value (float64) to be rounded, and precision (uint)
-// // output: the rounded number as a float64
-// func roundFloat(val float64, precision uint) float64 {
-// 	ratio := math.Pow(10, float64(precision))
-// 	return math.Round(val*ratio) / ratio
-// }
-
+// Tests for the function: UpdateOnBoardCells()
 func TestUpdateOnBoardCells(t *testing.T) {
 
+	// test object (inputs and answer)
 	type test struct {
 		board                        GameBoard
 		numRows, numCols, row, col   int
 		answer                       int
 	}
 	
+	// obtain directories and input & output files
 	inputDirectory := "tests/UpdateOnBoardCells/input/"
 	outputDirectory := "tests/UpdateOnBoardCells/output/"
 
 	inputFiles := ReadFilesFromDirectory(inputDirectory)
 	outputFiles := ReadFilesFromDirectory(outputDirectory)
-
-	fmt.Println("A")
 
 	//assert that files are non-empty and have the same length
 	AssertEqualAndNonzero(len(inputFiles), len(outputFiles))
@@ -40,14 +33,14 @@ func TestUpdateOnBoardCells(t *testing.T) {
 	//we now will need to create our array of tests
 	tests := make([]test, len(inputFiles))
 
+	// set up input variables
 	var board GameBoard
 	var numRows int
 	var numCols int
 	var row int
 	var col int
 
-
-	//first, range through the input and output files and set the test values
+	// go through the input and output files and set the test values
 	for i := range inputFiles {
 		
 		board, numRows, numCols, row, col = ReadBoardFourIntsFromFile(inputDirectory, inputFiles[i])
@@ -60,128 +53,353 @@ func TestUpdateOnBoardCells(t *testing.T) {
 		tests[i].answer = ReadIntegerFromFile(outputDirectory, outputFiles[i])
 	}
 
-	//are the tests correct?
+	// test the function and prints out whether the test passes or fails
+	fmt.Println("Testing UpdateOnBoardCells()")
 	for _, test := range tests {
-		fmt.Println("Thomas")
-		fmt.Println(test)
-		fmt.Println("start test board")
-		PrintBoard(test.board)
-		fmt.Println("end test board")
-		outcome := UpdateOnBoardCells(test.board, test.numRows, test.numCols, test.row, test.col)
-		fmt.Println("Outcome: ", outcome)
-		fmt.Println("test answer: ", test.answer)
-			
-		if outcome == test.answer {
-			fmt.Println("Correct!")
+		output := UpdateOnBoardCells(test.board, test.numRows, test.numCols, test.row, test.col)
+		
+		if output == test.answer {
+			fmt.Println("Correct! Answer: ", output)
 		} else {
-			fmt.Println("Incorrect!")
+			fmt.Println("The function's output is ", output, ". The correct answer is ", test.answer, ".")
 		}
+		fmt.Println()
 	}
 }
 
+// Tests for the function: IsStable()
+func TestIsStable(t *testing.T) {
+
+	// test object (inputs and answer)
+	type test struct {
+		board                        GameBoard
+		numRows, numCols, row, col   int
+		answer                       bool
+	}
+	
+	// obtain directories and input & output files
+	inputDirectory := "tests/IsStable/input/"
+	outputDirectory := "tests/IsStable/output/"
+
+	inputFiles := ReadFilesFromDirectory(inputDirectory)
+	outputFiles := ReadFilesFromDirectory(outputDirectory)
+
+	//assert that files are non-empty and have the same length
+	AssertEqualAndNonzero(len(inputFiles), len(outputFiles))
+
+	//we now will need to create our array of tests
+	tests := make([]test, len(inputFiles))
+
+	// set up input variables
+	var board GameBoard
+	var numRows int
+	var numCols int
+
+	// go through the input and output files and set the test values
+	for i := range inputFiles {
+		
+		board, numRows, numCols = ReadBoardTwoIntsFromFile(inputDirectory, inputFiles[i])
+		tests[i].board = board
+		tests[i].numRows = numRows
+		tests[i].numCols = numCols
+
+		tests[i].answer = ReadBooleanFromFile(outputDirectory, outputFiles[i])
+	}
+
+	// test the function and prints out whether the test passes or fails
+	fmt.Println("Testing IsStable()")
+	for _, test := range tests {
+		output := IsStable(test.board, test.numRows, test.numCols)
+
+		
+		if output == test.answer {
+			fmt.Println("Correct! Answer: ", output)
+		} else {
+			fmt.Println("The function's output is ", output, ". The correct answer is ", test.answer, ".")
+		}
+		fmt.Println()
+	}
+}
+
+// Tests for the function: OnBoard()
+func TestOnBoard(t *testing.T) {
+
+	// test object (inputs and answer)
+	type test struct {
+		board                        GameBoard
+		numRows, numCols, row, col   int
+		answer                       bool
+	}
+
+	//we now will need to create our array of tests
+	numTests := 3
+	tests := make([]test, numTests)
+
+	// normal, true case
+	index := 0
+	tests[index].numRows = 5
+	tests[index].numCols = 5
+	tests[index].row = 2
+	tests[index].col = 2
+	tests[index].answer = true
+
+	// false case
+	index++
+	tests[index].numRows = 3
+	tests[index].numCols = 3
+	tests[index].row = 3
+	tests[index].col = 4
+	tests[index].answer = false
+
+	// border case
+	index++
+	tests[index].numRows = 4
+	tests[index].numCols = 4
+	tests[index].row = 3
+	tests[index].col = 3
+	tests[index].answer = true
+
+	fmt.Println("Testing OnBoard()")
+	// test the function and prints out whether the test passes or fails
+	for _, test := range tests {
+		output := OnBoard(test.numRows, test.numCols, test.row, test.col)
+
+		if output == test.answer {
+			fmt.Println("Correct! Answer: ", output)
+		} else {
+			fmt.Println("The function's output is ", output, ". The correct answer is ", test.answer, ".")
+		}
+	}
+	fmt.Println()
+}
+
+// Tests for the function: ToppleCell()
+func TestToppleCell(t *testing.T) {
+
+	// test object (inputs and answer)
+	type test struct {
+		board                        GameBoard
+		numRows, numCols, row, col   int
+		topFalloff                   []*int
+		bottomFalloff                []*int
+		answer                       GameBoard
+	}
+
+	//we now will need to create our array of tests
+	numTests := 1
+	tests := make([]test, numTests)
+
+	// normal, true case
+	index := 0
+	tests[index].numRows = 3
+	tests[index].numCols = 3
+	var board GameBoard
+	board = make([]([]int), tests[index].numRows)
+	for r := range board {
+	  board[r] = make([]int, tests[index].numCols)
+	}
+	board[0][0] = 0
+	board[0][1] = 0
+	board[0][2] = 0
+	board[1][0] = 0
+	board[1][1] = 4
+	board[1][2] = 0
+	board[2][0] = 0
+	board[2][1] = 0
+	board[2][2] = 0
+	tests[index].board = board
+	tests[index].row = 1
+	tests[index].col = 1
+	tests[index].topFalloff = make([]*int, tests[index].numRows)
+	tests[index].bottomFalloff = make([]*int, tests[index].numCols)
+	var answerBoard GameBoard
+	answerBoard = make([]([]int), tests[index].numRows)
+	for r := range answerBoard {
+	  answerBoard[r] = make([]int, tests[index].numCols)
+	}
+	board[0][0] = 0
+	board[0][1] = 1
+	board[0][2] = 0
+	board[1][0] = 1
+	board[1][1] = 0
+	board[1][2] = 1
+	board[2][0] = 0
+	board[2][1] = 1
+	board[2][2] = 0
+	tests[index].answer = answerBoard
+
+	fmt.Println("Testing ToppleCell()")
+	// test the function and prints out whether the test passes or fails
+	for _, test := range tests {
+		ToppleCell(test.board, test.numRows, test.numCols, test.row, test.col, test.topFalloff, test.bottomFalloff)
+
+		output := test.board
+
+		if BoardsMatch(output, test.board) {
+			fmt.Println("Correct! Answer: ")
+			PrintBoard(output)
+		} else {
+			fmt.Println("The function's output is...")
+			PrintBoard(output)
+			fmt.Println("The correct answer is...")
+			PrintBoard(test.answer)
+		}
+	}
+	fmt.Println()
+}
+
+// ReadBoardFourIntsFromFile: reads the given board and accompanying untegers
 func ReadBoardFourIntsFromFile(directory string, inputFile os.FileInfo) (GameBoard, int, int, int, int) {
 	fileName := inputFile.Name() //grab file name
 
-	//now, read in the input file
+	// read in the input file
 	fileContents, err := ioutil.ReadFile(directory + fileName)
 	if err != nil {
 		panic(err)
 	}
 
+	// format input line by line
 	inputLines := strings.Split(strings.TrimSpace(strings.Replace(string(fileContents), "\r\n", "\n", -1)), "\n")
 
-	index := 0
-
-	numRows, err2 := strconv.Atoi(string(inputLines[0]))
-	if err2 != nil {
-		panic(err2)
+	// read in the first lines which are just integers
+	numInts := 4
+	intParams := make([]int, numInts)
+	for i := 0; i < numInts; i++ {
+		intParams[i], err = strconv.Atoi((strings.Split(inputLines[i], " "))[0])
+		if err != nil {
+			panic(err)
+		}
 	}
-	index++
-	fmt.Println("numRows: ", numRows)
-	numCols, err3 := strconv.Atoi(string(inputLines[index][0]))
-	if err3 != nil {
-		panic(err3)
-	}
-	index++
-	fmt.Println("numCols: ", numRows)
-	row, err4 := strconv.Atoi(string(inputLines[index][0]))
-	if err4 != nil {
-		panic(err4)
-	}
-	index++
-	fmt.Println("row: ", row)
-	col, err5 := strconv.Atoi(string(inputLines[index][0]))
-	if err5 != nil {
-		panic(err5)
-	}
-	fmt.Println("col: ", col)
-	index++
+	// initialize parameters' values
+	numRows := intParams[0]
+	numCols := intParams[1]
+	row := intParams[2]
+	col := intParams[3]
 
+	index := numInts + 1
 
-	// rawLines := string(fileContents)
-	// index := 0
-	// for i, line := range rawLines {
-	// 	fmt.Println("line: ", string(line))
-	// 	if string(line) == "/" {
-	// 		index = i
-	// 	}
-	// }
-	// rawLines = rawLines[0:index]
-
-	//first, read lines and split along blank space
-
-
-	// index := 0
-	// for i, inputLine := range inputLines {
-	// 	//currentRow := strings.Split(inputLine, " ")
-	// 	if inputLine == "/" {
-	// 		index = i
-	// 	}
-	// }
-
-	//make the map that will store our frequency map
-	var frequencyMap [][]int
-
-	frequencyMap = make([]([]int), numRows)
-	for r := range frequencyMap {
-		frequencyMap[r] = make([]int, numCols)
+	//make the board
+	var board [][]int
+	board = make([]([]int), numRows)
+	for r := range board {
+		board[r] = make([]int, numCols)
 	}
 
-	//each line of the file corresponds to a single line of the frequency map
+	// read the remaining part of the file, which is the given board
 	for i := index + 1; i < len(inputLines); i++ {
 
 		//read out the current line
 		currentRow := strings.Split(inputLines[i], " ")
-		fmt.Println("currentRow: ", currentRow)
-		fmt.Println("len current row: ", len(currentRow))
 
-		//currentLine has two strings corresponding to the key and value
-
-		//frequencyMap = append(frequencyMap, make([]int, numCols))
-		//maxIndex := len(frequencyMap) - 1
-
-		//frequencyMap[maxIndex] = make([]int, 0)
-
-		for j, inputCell := range currentRow {
-
-			currentValue, err := strconv.Atoi(inputCell)
-			fmt.Println(currentValue)
+		// go integer by integer in the current line
+		for j, cell := range currentRow {
+			currentValue, err := strconv.Atoi(cell)
 			if err != nil {
 				panic(err)
 			}
-			frequencyMap[i - index - 1][j] = currentValue
-			//frequencyMap[maxIndex] = append(frequencyMap[maxIndex], currentValue)
-			fmt.Println("row in progress: ", frequencyMap[i - index - 1])
+			// add the integer to the board
+			board[i - index - 1][j] = currentValue
 		}
-
-		//if we make it here, everything is OK, so append to the input map
-		
 	}
-	fmt.Println("index: ", index)
-
-	return frequencyMap, numRows, numCols, row, col
-	//return frequencyMap, 0, 0, 0, 0
+	return board, numRows, numCols, row, col
 }
+
+// ReadBoardFourIntsFromFile: reads the given board and accompanying 2 integers
+func ReadBoardTwoIntsFromFile(directory string, inputFile os.FileInfo) (GameBoard, int, int) {
+	fileName := inputFile.Name() //grab file name
+
+	// read in the input file
+	fileContents, err := ioutil.ReadFile(directory + fileName)
+	if err != nil {
+		panic(err)
+	}
+
+	// format input line by line
+	inputLines := strings.Split(strings.TrimSpace(strings.Replace(string(fileContents), "\r\n", "\n", -1)), "\n")
+
+	// read in the first lines which are just integers
+	numInts := 2
+	intParams := make([]int, numInts)
+	for i := 0; i < numInts; i++ {
+		intParams[i], err = strconv.Atoi((strings.Split(inputLines[i], " "))[0])
+		if err != nil {
+			panic(err)
+		}
+	}
+	// initialize parameters' values
+	numRows := intParams[0]
+	numCols := intParams[1]
+
+	index := numInts + 1
+
+	//make the board
+	var board [][]int
+	board = make([]([]int), numRows)
+	for r := range board {
+		board[r] = make([]int, numCols)
+	}
+
+	// read the remaining part of the file, which is the given board
+	for i := index + 1; i < len(inputLines); i++ {
+
+		//read out the current line
+		currentRow := strings.Split(inputLines[i], " ")
+
+		// go integer by integer in the current line
+		for j, cell := range currentRow {
+			currentValue, err := strconv.Atoi(cell)
+			if err != nil {
+				panic(err)
+			}
+			// add the integer to the board
+			board[i - index - 1][j] = currentValue
+		}
+	}
+	return board, numRows, numCols
+}
+
+// func ReadFourIntsFromFile(directory string, inputFile os.FileInfo) (int, int, int, int) {
+// 	fileName := inputFile.Name() //grab file name
+
+// 	// read in the input file
+// 	fileContents, err := ioutil.ReadFile(directory + fileName)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+
+
+// 	// format input line by line
+// 	inputLines := strings.Split(strings.TrimSpace(strings.Replace(string(fileContents), "\r\n", "\n", -1)), "\n")
+
+// 	numInts := 4
+// 	intParams := make([]int, numInts)
+
+// 	// read the remaining part of the file, which is the given board
+
+// 	for i := 0; i < numInts; i++ {
+
+// 		//read out the current line
+// 		currentRow := strings.Split(inputLines[i], " ")
+// 		fmt.Println(currentRow)
+
+// 		// go integer by integer in the current line
+// 		intParams[i], err = strconv.Atoi(currentRow[0])
+// 		if err != nil {
+// 			panic(err)
+// 		}
+// 	}
+
+// 	// initialize parameters
+// 	numRows := intParams[0]
+// 	numCols := intParams[1]
+// 	row := intParams[2]
+// 	col := intParams[3]
+	
+// 	return numRows, numCols, row, col
+// }
+
+
+
 
 // func ReadBoardFromFile(directory string, inputFile os.FileInfo) GameBoard {
 // 	fileName := inputFile.Name() //grab file name
@@ -222,6 +440,28 @@ func ReadBoardFourIntsFromFile(directory string, inputFile os.FileInfo) (GameBoa
 // 	return frequencyMap
 // }
 
+func ReadBooleanFromFile(directory string, file os.FileInfo) bool {
+	//now, consult the associated output file.
+	fileName := file.Name() //grab file name
+
+	//now, read out the file
+	fileContents, err := ioutil.ReadFile(directory + fileName)
+	if err != nil {
+		panic(err)
+	}
+
+	//trim out extra space and store as a slice of strings, each containing one line.
+	outputLines := strings.Split(strings.TrimSpace(strings.Replace(string(fileContents), "\r\n", "\n", -1)), "\n")
+
+	//parse the float
+	answer, err := strconv.ParseBool(outputLines[0])
+
+	if err != nil {
+		panic(err)
+	}
+
+	return answer
+}
 
 func ReadIntegerFromFile(directory string, file os.FileInfo) int {
 	//now, consult the associated output file.
